@@ -7,7 +7,7 @@ close all;
 
 load('cameraparametersAsus.mat');
 
-[imgs_rgb, imgs_depth, num_imgs] = load_images('filinha', 'jpg');
+[imgs_rgb, imgs_depth, num_imgs] = load_images('2cams_people\Cam2', 'png');
 
 bg_depth = median(imgs_depth, 3);
 
@@ -25,7 +25,7 @@ for i=1:num_imgs
 end
 
 %DEBUG
-show = 40;
+show = 8;
 C = connected_objs(:, :, show);
 figure(111); imagesc(C);
 

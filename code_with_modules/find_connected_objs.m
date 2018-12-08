@@ -13,9 +13,8 @@ function [ connected_objs, num_objs ] = find_connected_objs( background, img, pi
     imdiff(abs_gradient == 1) = 0;
     imdiff = imopen(imdiff, strel('disk', filter_thres));
     imdiff = bwareaopen(imdiff, pixel_thres);
+    imdiff(img == 0) = 0; %removes 0 depth points because kinect is faulty 
     connected_objs = bwlabel(imdiff);
-    
-    connected_objs(img == 0) = 0; %removes 0 depth points because kinect is faulty 
     
     num_objs = max(max(connected_objs));
     

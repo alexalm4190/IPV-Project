@@ -27,7 +27,7 @@ function [ R, T, inliers ] = ransac_procrustes( xyz1, xyz2, distance_threshold, 
 
     % Calculation of transform with inliers
     [~,~,tr]=procrustes(xyz1(inliers,:),xyz2(inliers,:),'scaling',false,'reflection',false);
-    R = tr.T;
     T = tr.c(1,:)';
+    R = tr.T;
 
 end
