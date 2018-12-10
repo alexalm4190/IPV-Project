@@ -44,7 +44,7 @@ end
 [f1,d1] = vl_sift(single(rgb2gray(uint8(rgbd_cam1(:, :, :, 1)))));
 [f2,d2] = vl_sift(single(rgb2gray(uint8(rgbd_cam2(:, :, :, 1)))));
 
-[matches score] = vl_ubcmatch(d1,d2,1); 
+[matches score] = vl_ubcmatch(d1,d2,1.4); 
 
 I1 = rgb2gray(uint8(rgbd_cam1(:, :, :, 1)));
 I2 = rgb2gray(uint8(rgbd_cam2(:, :, :, 1)));
@@ -92,6 +92,12 @@ cam1toW.R = eye(3);
 cam1toW.T = zeros(3,1);
 
 frame = 8;
+
+figure(21561);
+imshow(uint8(imgs_rgb_cam1(:, :, :, frame)));
+figure(22561);
+imshow(uint8(imgs_rgb_cam2(:, :, :, frame)));
+
 labeled_cam1 = connected_objs_cam1(:, :, frame);
 labeled_cam2 = connected_objs_cam2(:, :, frame);
 
