@@ -100,6 +100,10 @@ imshow(uint8(imgs_rgb_cam2(:, :, :, frame)));
 
 labeled_cam1 = connected_objs_cam1(:, :, frame);
 labeled_cam2 = connected_objs_cam2(:, :, frame);
+figure(23561);
+imagesc(connected_objs_cam1(:, :, frame));
+figure(246);
+imagesc(connected_objs_cam2(:, :, frame));
 
 P_cam1 = xyz_points( imgs_depth_cam1(:, :, frame), cam_params.Kdepth);
 P_cam2 = xyz_points( imgs_depth_cam2(:, :, frame), cam_params.Kdepth);
@@ -127,36 +131,31 @@ for obj_cam1=1:num_objects_cam1(frame)
     end    
 end    
 
-matches = [];
-match_threshold = 1.5; %10 centimeters
-if(num_objects_cam1(frame) <= num_objects_cam2(frame))
-    missing = linspace(1, num_objects_cam2(frame), num_objects_cam2(frame));
-    for i = 1:num_objects_cam1(frame)
-        [min_val, min_index] = min(match_table(i, :));
-        if( min_val <= match_threshold )
-            matches = cat(2, matches, [i; min_index]);
-            missing(missing == min_index) = [];
-        else
-            matches = cat(2, matches, [i; 0]);
-        end
-    end
+obj_matches = [];
+match_threshold = 0.5; %half a meter
+min_matrix = 0;
+while( min_matrix <= match_threshold )
     
-    missing = [zeros(1,length(missing)); missing];
-    matches = cat(2, matches, missing);
-else
-    missing = linspace(1, num_objects_cam1(frame), num_objects_cam1(frame));
-    for i = 1:num_objects_cam2(frame)
-        [min_val, min_index] = min(match_table(:, i));
-        if( min_val <= match_threshold )
-            matches = cat(2, matches, [min_index; i]);
-            missing(missing == min_index) = [];
-        else
-            matches = cat(2, matches, [0; i]);
-        end
+    min_matrix = min(match_table(:));
+    if(min_matrix <= match_threshold)
+        [min_row, min_col] = find(match_table==min_matrix);
+        match_table(min_row, :) = ones(1, length(match_table(min_row, :)));
+        match_table(:, min_col) = ones(length(match_table(:, min_col)), 1);
+
+        obj_matches = [obj_matches, [min_row; min_col]];
     end
-    
-    missing = [missing; zeros(1,length(missing))];
-    matches = cat(2, matches, missing);
+end
+
+for i=1:num_objects_cam1(frame)
+    if( isempty( obj_matches(obj_matches(1, :) == i ) ) )
+        obj_matches = [obj_matches, [i; 0]];
+    end
 end    
+for i=1:num_objects_cam2(frame)
+    if( isempty( obj_matches(obj_matches(2, :) == i ) ) )
+        obj_matches = [obj_matches, [0; i]];
+    end
+end    
+
 
 
