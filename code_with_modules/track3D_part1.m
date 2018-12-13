@@ -1,4 +1,4 @@
-function [ objects ] = track3D_part1( imgseq1, cam_params )
+function [ objects ] = track3D_part1( imgseq1, cam_params, min_frames )
 
     imgs_rgb = zeros(480,640, 3, length(imgseq1));
     imgs_depth = zeros(480,640,length(imgseq1));
@@ -24,7 +24,6 @@ function [ objects ] = track3D_part1( imgseq1, cam_params )
            frames(i, obj).X = objects_frame(1, :, obj);
            frames(i, obj).Y = objects_frame(2, :, obj);
            frames(i, obj).Z = objects_frame(3, :, obj);
-           frames(i, obj).X = objects_frame(1, :, obj);
            frames(i, obj).frames_tracked = i;
         end    
         
@@ -63,65 +62,99 @@ function [ objects ] = track3D_part1( imgseq1, cam_params )
 
     distance_weight= 1;
     %color_weight= 0.5;
-    objects = struct();
+    objects = struct('X',{},'Y',{},'Z',{},'frames_tracked',{});
+    temp_objects = struct();
     last_obj = 0;
-    start = 1;
-    while(isempty(frames(start, 1).X))
-        start = start + 1;
-    end      
+ 
+    temp_objects.X = [];
+    temp_objects.Y = [];
+    temp_objects.Z = [];
+    temp_objects.frames_tracked = [];
     
-    for i=start:num_imgs-1 
-        objects_in_frame_A = frames(i, :);
-        objects_in_frame_B = frames(i + 1, :);
-                    
-        if ( ~isempty(objects_in_frame_A(1).X) && ~isempty(objects_in_frame_B(1).X) )
-            if(i==1)
-                fobjs = 1;
-                while( ~isempty(objects_in_frame_A(fobjs).X) )
-                    last_obj = last_obj + 1;
-                    objects(last_obj)
-                    fobjs = fobjs+1;
-                end
-            elseif( isempty(frames(i - 1, 1).X) )    
-                fobjs = 1;
-                while( ~isempty(objects_in_frame_A(fobjs).X) )
-                    last_obj = last_obj + 1;
-                    objects(last_obj)
-                    fobjs = fobjs+1;
-                end
-            end    
+     
+    for i=1:num_imgs
+        if (isempty(frames(i, 1).X))
+            continue;
+        end
+        objects_in_frame = frames(i, :);
+      
+        if isempty(temp_objects(1).X)   
+            for obj = 1:num_objects(i)
+                temp_objects(obj).X = objects_in_frame(obj).X;
+                temp_objects(obj).Y = objects_in_frame(obj).Y;
+                temp_objects(obj).Z = objects_in_frame(obj).Z;
+                temp_objects(obj).frames_tracked = objects_in_frame(obj).frames_tracked;
+            end
+        else
                 
-            match_table = zeros(length(objects_in_frame_A),length(objects_in_frame_B));
-            for j=length(objects_in_frame_A) %for all objects in a frame
-                obj_1 = objects_in_frame_A(j);
+            match_table = zeros(length(temp_objects),length(objects_in_frame));
+            for j=1:length(temp_objects) %for all objects in a frame
+                obj_1 = temp_objects(j);
                 Xs= [obj_1.X];
                 Ys= [obj_1.Y];
                 Zs= [obj_1.Z];
-                centroid_obj_in_frameA = mean([Xs; Ys; Zs]);
-                for k=1:length(objects_in_frame_B)
-                    obj_2 = objects_in_frame_B(k);
+                centroid_obj_in_temp = mean([Xs; Ys; Zs]);
+                for k=1:length(objects_in_frame)
+                    obj_2 = objects_in_frame(k);
                     Xs= [obj_2.X];
                     Ys= [obj_2.Y];
                     Zs= [obj_2.Z];
-                    centroid_obj_in_frameB= mean([Xs; Ys; Zs]);
+                    centroid_obj_in_frame= mean([Xs; Ys; Zs]);
                     %color_diff = obj_1.avg_color - obj_2.avg.color;
-                    match_table(j, k)= norm(centroid_obj_in_frameA - centroid_obj_in_frameB) * distance_weight; %+ color_diff * color_weight;
+                    match_table(j, k)= norm(centroid_obj_in_temp - centroid_obj_in_frame) * distance_weight; %+ color_diff * color_weight;
+                    
                 end
+                
             end
+            
+            
 
-            threshold = 0.5;
+            threshold = 0.2;
             min_matrix = 0;
             match_matrix = [];
-            while( ~isempty(match_table) && min_matrix <= threshold )
+            while(min_matrix <= threshold && ~isnan(min_matrix))
                 min_matrix = min(match_table(:));
                 [min_row, min_col] = find(match_table==min_matrix);
-                match_table(min_row, :) = [];
-                match_table(:, min_col) = [];
-
+                temp_objects(min_row).X = [temp_objects(min_row).X ; objects_in_frame(min_col).X];
+                temp_objects(min_row).Y = [temp_objects(min_row).Y ; objects_in_frame(min_col).Y];
+                temp_objects(min_row).Z = [temp_objects(min_row).Z ; objects_in_frame(min_col).Z];
+                temp_objects(min_row).frames_tracked = [temp_objects(min_row).frames_tracked,i];
+                if size(match_table,1)== 1
+                    break;
+                end
+                match_table(min_row, :) = NaN;
+                match_table(:, min_col) = NaN;
                 match_matrix = [match_matrix, [min_row; min_col]];
+                min_matrix = min(match_table(:));
+
+            end
+            [row, col] = find(~isnan(match_table));
+            row = unique(row);
+            col = unique(col);
+            
+            for w=1:length(col)
+                
+                temp_objects(length(temp_objects)+1) = objects_in_frame(col(w));     
+            end
+            row=sort(row, 'descend');
+            for w=1:length(row)   
+                objects(length(objects)+1) = temp_objects(row(w)); 
+                temp_objects(row(w))= [];
             end
         end
     end
+    
+    for w=1:length(temp_objects)
+        objects(length(objects)+1) = temp_objects(w);
+    end
+   
+    not_objects= [];
+    for i=1:length(objects)
+       if length(objects(i).frames_tracked) < min_frames
+           not_objects= [not_objects i];
+       end
+    end
+    objects(not_objects)= [];
+    end
         
-end
 
